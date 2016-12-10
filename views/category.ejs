@@ -1,0 +1,19 @@
+<div class="row" ng-controller="categoryCtrl" ng-init="init()">
+  <div class="col-xs-10 col-xs-offset-1">
+    <div class="row">
+      <div class="col-xs-12">
+        <div class="input-group">
+          <input type="text" ng-model="categoryName" class="form-control" placeholder="추가할 카테고리 이름">
+          <span class="input-group-btn">
+            <button class="btn btn-default" type="button" ng-click="addCategory()">추가</button>
+          </span>
+        </div>
+        <ul class="list-group top-margin10">
+          <li class="list-group-item" ng-repeat="category in categoryList">
+            <input type="checkbox" ng-model="category.checked" ng-click="changeCategory($event)" name="{{category.id}}" /> <span>{{category.summary}}</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>

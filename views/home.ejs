@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html ng-app="app">
+  <head>
+    <meta charset="UTF-8">
+    <title>John-na.com</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+    <link rel="stylesheet" href="/stylesheets/style.css">
+  </head>
+  <body>
+
+  <nav class="navbar navbar-default" ng-controller="homeCtrl">
+    <div class="container-fluid">
+      <!-- Brand and toggle get grouped for better mobile display -->
+      <div class="navbar-header">
+        <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="#">John-na.com</a>
+      </div>
+
+      <!-- Collect the nav links, forms, and other content for toggling -->
+      <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+        <ul class="nav navbar-nav">
+          <li class="active"><a href="" ng-click="go($event, '/main')">Home</a></li>
+          <li><a href="" ng-click="go($event, '/daily')">Daily</a></li>
+          <li><a href="" ng-click="go($event, '/weekly')">Weekly</a></li>
+          <li><a href="" ng-click="go($event, '/monthly')">Monthly</a></li>
+        </ul>
+        <ul class="nav navbar-nav navbar-right">
+          <li class="dropdown">
+            <a href="" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">
+              <span class="glyphicon glyphicon-cog"></span> Settings <span class="caret"></span></a>
+            <ul class="dropdown-menu">
+              <li><a href="" ng-click="go($event, '/category')">카테고리 관리</a></li>
+            </ul>
+          </li>
+        </ul>
+      </div><!-- /.navbar-collapse -->
+    </div><!-- /.container-fluid -->
+  </nav>
+
+  <div ng-view>
+  </div>
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.0-rc.2/angular.min.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.0-rc.2/angular-route.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+  <script>
+    var app = angular.module("app", ['ngRoute']);
+
+    app.config(function ($routeProvider) {
+
+      $routeProvider
+      .when('/', {
+        templateUrl: '/main',
+        controller: 'mainCtrl'
+      })
+      .when('/daily', {
+        templateUrl: '/daily',
+        controller: 'dailyCtrl'
+      })
+      .when('/category', {
+        templateUrl: '/category',
+        controller: 'categoryCtrl'
+      })
+      .otherwise({
+        redirectTo: '/'
+      });
+
+    });
+
+    app.controller("homeCtrl", function($scope, $location) {
+   
+      $scope.go = function($event, path) {
+        $('.active').removeClass('active')
+        $($event.target).closest('li').addClass('active');
+        $location.path(path);
+      };
+     
+    });
+    app.controller("mainCtrl", function($scope, $http, $window) {
+      var loadCheckedCategoryList = function() {
+        return $http.get('/checkedCategoryList')
+        .then(function(response) {
+          if (response.data) {
+            $scope.categoryList = response.data;
+          }
+        });
+      };
+
+      var setFormData = function(data) {
+        if (!data) {
+          data = {
+            categoryId : $scope.categoryList && $scope.categoryList.length > 0 ? $scope.categoryList[0].id : '',
+            summary : '',
+            description : '',
+            buttonText : '시작'
+          }
+        }
+        $scope.categoryId = data.categoryId;
+        $scope.summary = data.summary;
+        $scope.description = data.description;
+        $scope.buttonText = data.buttonText;
+      };
+
+      var setSavedData = function() {
+        return $http.get('/getCurrent')
+        .then(function(response) {
+          if ($scope.categoryList && !$.isEmptyObject(response.data)) {
+            response.data.buttonText = '종료';
+            setFormData(response.data);
+          } else {
+            setFormData();
+          }
+        });
+      };
+
+      $scope.process = function() {
+        var currentData = {categoryId : $scope.categoryId, summary : $scope.summary, description : $scope.description};
+        $http.post('/saveCurrent', currentData)
+        .then(function(response) {
+          console.log(response.data);
+          if (response.data == 'saved') {
+            currentData.buttonText = '종료';
+            setFormData(currentData); 
+          } else {
+            setFormData();
+          }
+        });
+      };
+
+      $scope.init = function() {
+        loadCheckedCategoryList()
+        .then(function() {
+          return setSavedData();
+        });
+      };
+      
+    });
+    app.controller("dailyCtrl", function($scope, $http, $window) {
+   
+    });
+    app.controller("categoryCtrl", function($scope, $http, $window) {
+
+      var loadCategoryList = function() {
+        $http.get('/categoryList')
+        .then(function(response) {
+          if (response.data) {
+            $scope.categoryList = response.data;
+          }
+        });
+      };
+
+      $scope.init = function() {
+        loadCategoryList();
+      };
+
+      $scope.changeCategory = function($event) {
+        $http.post('/saveCategory', {name : $event.target.name, value : $event.target.checked});
+      };
+
+      $scope.addCategory = function() {
+        if (!$scope.categoryName) {
+          return;
+        }
+
+        $http.post('/addCategory', {name : $scope.categoryName})
+        .then(function() {
+          loadCategoryList();
+          $scope.categoryName = '';
+        });
+      };
+    });
+  </script>
+  </body>
+</html>

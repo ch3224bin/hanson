@@ -35,3 +35,9 @@ jspm_packages
 
 # Optional REPL history
 .node_repl_history
+
+# 설정파일
+config.json
+
+# level db 경로
+mydb
