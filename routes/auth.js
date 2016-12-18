@@ -1,19 +1,8 @@
 var express = require('express');
 var google = require("googleapis");
-var fs = require('fs');
 var router = express.Router();
 
 var OAuth2 = google.auth.OAuth2;
-
-
-var oauth2Client;
-
-// Load client secrets from a local file.
-fs.readFile('config.json', function processClientSecrets(err, content) {
-  var config = JSON.parse(content);
-  oauth2Client = new OAuth2(config.client_id, config.client_secret, config.redirect_uri);
-});
-
 
 // generate a url that asks permissions for Google+ and Google Calendar scopes
 var scopes = [
@@ -22,11 +11,15 @@ var scopes = [
 ];
 
 
-var getMe = function(resolve, reject) {
+var getOauth2Client = function() {
+	return new OAuth2(process.env.CLIENT_ID, process.env.CLIENT_SECRET, process.env.REDIRECT_URI);
+};
+
+var getMe = function(auth) {
 	return new Promise(function (resolve, reject) {
 		var plus = google.plus('v1');
 		plus.people.get({
-		    auth: oauth2Client,
+		    auth: auth,
 		    userId: 'me'
 		  }, function(err, profile) {
 		    if (err) {
@@ -40,56 +33,56 @@ var getMe = function(resolve, reject) {
 	});
 };
 
-var authorize = function(code, callback) {
-	oauth2Client.getToken(code, function(err, tokens) {
-	    if (err) {
-	      console.log(err);
-	      return;
-	    }
-
-	    oauth2Client.setCredentials(tokens);
-	    callback(tokens);
-  	});
-};
-
-router.get("/oauth2", function(req, res) {
-	var url = oauth2Client.generateAuthUrl({
-	  scope: scopes // If you only need one scope you can pass it as string
-	});
-	res.redirect(url);
-});
-
-router.get("/oauth2callback", function(req, res) {
-  var code = req.query.code;
-  var callback = function(tokens) {
-  	res.cookie('googleToken', tokens);
-  	res.redirect('/home');
-  };
-  authorize(code, callback);
-});
-
-router.getAuth = function() {
+var getAuth = function(req) {
+	var oauth2Client = getOauth2Client();
+	var tokens =  req.cookies.googleToken;
+	oauth2Client.setCredentials(tokens);
 	return oauth2Client;
 };
 
+var getTokens = function(code) {
+	return new Promise(function(resolve, reject) {
+		getOauth2Client().getToken(code, function(err, tokens) {
+		    if (err) {
+		      console.log(err);
+		      reject(err);
+		      return;
+		    }
 
+		    resolve(tokens);
+		});
+	});
+};
+
+router.getAuth = function(req) {
+	return getAuth(req);
+};
+
+/* filter : 구글 인증이 있는지 확인
+ * google+ 정보를 받아와 session에 넣는다.
+ */
 router.authentication = function(req, res, next) {
 
 	if (req.url.match(/^\/oauth2|^\/oauth2callback/)) {
 		next();
 		return;
 	}
+
 	var tokens =  req.cookies.googleToken;
 	if (tokens) {
-		oauth2Client.setCredentials(tokens);
-
 		if (!req.session.user) {
-			getMe()
+			getMe(getAuth(req))
+			.catch(function() {
+				var code = tokens.refresh_token;
+				getTokens(code)
+				.then(tokens => {
+					res.cookie('googleToken', tokens, {maxAge: 2592000000});
+  					res.redirect('/home');
+				});
+			})
 			.then(function(profile) {
 				req.session.user = profile;
 				next();
-			}, function(err){
-				res.redirect('/oauth2');
 			});
 		} else {
 			next();
@@ -98,5 +91,27 @@ router.authentication = function(req, res, next) {
 		res.redirect('/oauth2');
 	}
 };
+
+/* google api 권한 승인 페이지로 이동 */
+router.get("/oauth2", function(req, res) {
+	var url = getOauth2Client().generateAuthUrl({
+	  access_type: 'offline',
+	  scope: scopes,
+	  approval_prompt: 'force'
+	});
+	res.redirect(url);
+});
+
+/* 권한 승인 후 code callback 
+ * code로 token을 받아서 쿠키에 넣는다.
+ */
+router.get("/oauth2callback", function(req, res) {
+  var code = req.query.code;
+  getTokens(code)
+  .then(tokens => {
+  	res.cookie('googleToken', tokens, {maxAge: 2592000000});
+  	res.redirect('/home');
+  });
+});
 
 module.exports = router;

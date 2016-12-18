@@ -1,24 +1,29 @@
 <div class="row" ng-controller="mainCtrl" ng-init="init()">
   <div class="col-xs-10 col-xs-offset-1">
-    <div class="row">
-      <form class="form-horizontal">
-        <div class="form-group">
-          <select class="form-control font-bold" 
-            ng-model="categoryId"
-            ng-required="true"
-            ng-options="option.id as option.summary for option in categoryList">
-          </select>
-        </div>
-        <div class="form-group">
-          <input class="form-control" ng-model="summary" placeholder="제목">
-        </div>
-        <div class="form-group">
-          <textarea class="form-control" ng-model="description" rows="3" placeholder="내용"></textarea>
-        </div>
-        <div class="form-group">
-           <button type="submit" ng-click="process()" class="btn btn-primary btn-lg btn-block">{{buttonText}}</button>
-        </div>
-      </form>
+    <div class="container" ng-show="!categoryList.length">
+      <div class="jumbotron">
+        <h1>반갑습니다.</h1>
+        <p>Settings에서 카테고리를 추가하세요.</p>
+        <p><a class="btn btn-primary btn-lg" href="" role="button" ng-click="goCategorySetting()">설정으로 바로가기</a></p>
+      </div>
     </div>
+    <form class="form-horizontal" ng-show="categoryList.length">
+      <div class="form-group">
+        <select class="form-control font-bold" 
+          ng-model="categoryId"
+          ng-required="true"
+          ng-options="option.id as option.summary for option in categoryList">
+        </select>
+      </div>
+      <div class="form-group">
+        <input class="form-control" ng-model="summary" placeholder="제목">
+      </div>
+      <div class="form-group">
+        <textarea class="form-control" ng-model="description" rows="3" placeholder="내용"></textarea>
+      </div>
+      <div class="form-group">
+         <button type="submit" ng-click="process()" class="btn btn-primary btn-lg btn-block">{{buttonText}}</button>
+      </div>
+    </form>
   </div>
 </div>

@@ -2,6 +2,8 @@
 <html ng-app="app">
   <head>
     <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>John-na.com</title>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
@@ -34,7 +36,7 @@
             <a href="" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">
               <span class="glyphicon glyphicon-cog"></span> Settings <span class="caret"></span></a>
             <ul class="dropdown-menu">
-              <li><a href="" ng-click="go($event, '/category')">카테고리 관리</a></li>
+              <li><a id="categoryLink" href="" ng-click="go($event, '/category')">카테고리 관리</a></li>
             </ul>
           </li>
         </ul>
@@ -73,16 +75,24 @@
 
     });
 
-    app.controller("homeCtrl", function($scope, $location) {
+    app.factory("loactionService", function($location) {
+      var loactionService = {};
+      loactionService.move = function(path, obj) {
+        $('.active').removeClass('active')
+        if (obj) $(obj).closest('li').addClass('active');
+        $location.path(path);
+      }
+      return loactionService
+    });
+
+    app.controller("homeCtrl", function($scope, $location, loactionService) {
    
       $scope.go = function($event, path) {
-        $('.active').removeClass('active')
-        $($event.target).closest('li').addClass('active');
-        $location.path(path);
+        loactionService.move(path, $event.target);
       };
      
     });
-    app.controller("mainCtrl", function($scope, $http, $window) {
+    app.controller("mainCtrl", function($scope, $http, loactionService) {
       var loadCheckedCategoryList = function() {
         return $http.get('/checkedCategoryList')
         .then(function(response) {
@@ -133,6 +143,10 @@
         });
       };
 
+      $scope.goCategorySetting = function() {
+        loactionService.move('/category');
+      };
+
       $scope.init = function() {
         loadCheckedCategoryList()
         .then(function() {
@@ -141,10 +155,10 @@
       };
       
     });
-    app.controller("dailyCtrl", function($scope, $http, $window) {
+    app.controller("dailyCtrl", function($scope, $http) {
    
     });
-    app.controller("categoryCtrl", function($scope, $http, $window) {
+    app.controller("categoryCtrl", function($scope, $http) {
 
       var loadCategoryList = function() {
         $http.get('/categoryList')

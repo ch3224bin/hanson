@@ -3,26 +3,10 @@ var google = require("googleapis");
 var level = require("level");
 var moment = require("moment");
 var auth = require('./auth');
+var googleService = require('./googleService');
 var router = express.Router();
-var db = level('./mydb', { valueEncoding: 'json' })
+var db = level((process.env.ABSOLUTE_PATH||'./') + process.env.LEVEL_DB_PATH, { valueEncoding: 'json' })
 
-
-
-var getCalandarList = function() {
-	return new Promise(function (resolve, reject) {
-		var calendar = google.calendar('v3');
-		calendar.calendarList.list({
-		    auth: auth.getAuth()
-		  }, function(err, response) {
-		    if (err) {
-		      console.log('The API returned an error: ' + err);
-		      reject(err);
-		      return;
-		    }
-		    resolve(response.items);
-		});
-	});
-};
 
 router.get('/home', function(req, res, next) {
 	res.render('home', {});
@@ -30,7 +14,7 @@ router.get('/home', function(req, res, next) {
 
 router.get('/main', function(req, res, next) {
 
-	getCalandarList()
+	googleService.getCalandarList(auth.getAuth(req))
 	.then(function(calendarList) {
 		res.render('main', {"calendarList" : calendarList});
 	});
@@ -50,7 +34,7 @@ router.get('/category', function(req, res, next) {
 
 router.get('/categoryList', function(req, res, next) {
 	
-	getCalandarList()
+	googleService.getCalandarList(auth.getAuth(req))
 	.then(function(calendarList) {
 		var categoryKey = req.session.user.id + '_category';
 		db.createReadStream({
@@ -74,7 +58,7 @@ router.get('/categoryList', function(req, res, next) {
 
 router.get('/checkedCategoryList', function(req, res, next) {
 	var resultList = [];
-	getCalandarList()
+	googleService.getCalandarList(auth.getAuth(req))
 	.then(function(calendarList) {
 		var categoryKey = req.session.user.id + '_category';
 		db.createReadStream({
@@ -108,19 +92,9 @@ router.post('/addCategory', function(req, res, next) {
 		return;
 	}
 
-	var calendar = google.calendar('v3');
-	calendar.calendars.insert({
-	    auth: auth.getAuth(),
-	    resource: {summary : req.body.name}
-	  }, function(err, response) {
-	    if (err) {
-	      console.log('The API returned an error: ' + err);
-	      res.send('err');
-	      return;
-	    }
-
-	    res.send('success');
-	});
+	googleService.insertCalandar(auth.getAuth(req), req.body.name)
+	.catch(err => res.send(err))
+	.then(result => res.send('success'));
 });
 
 router.post('/saveCurrent', function(req, res, next) {
@@ -137,20 +111,14 @@ router.post('/saveCurrent', function(req, res, next) {
 
 		// 이미 저장된 데이터가 있다면 캘린더 이벤트 등록.
 		if (saved) {
-
 			var event = value;
 			event.start = {dateTime : moment(event.startTime).toISOString()};
 			event.end = {dateTime : moment().toISOString()};
 
 			db.del(savedCurrentDataKey, function(err) {
-				var calendar = google.calendar('v3');
-				calendar.events.insert({
-				    auth: auth.getAuth(),
-				    calendarId : currentData.categoryId,
-				    resource: event
-				}, function(err, response) {
-					res.send('sent');
-				});
+				googleService.insertEvent(auth.getAuth(req), currentData.categoryId, event)
+				.catch(err => res.send(err))
+				.then(result => res.send('sent'));
 			});
 		} else {
 			db.put(savedCurrentDataKey, currentData)
